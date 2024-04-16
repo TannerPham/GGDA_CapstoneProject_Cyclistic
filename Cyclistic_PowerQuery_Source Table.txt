@@ -1,0 +1,25 @@
+let
+    Source = Folder.Files("C:\Users\Pham Duc Toan\Desktop\Portfolio\GGDA Capstone\Case Study 1_Cyclistic\2023_Dataset"),
+    #"Filtered Hidden Files2" = Table.SelectRows(Source, each [Attributes]?[Hidden]? <> true),
+    #"Invoke Custom Function2" = Table.AddColumn(#"Filtered Hidden Files2", "Transform File (2)", each #"Transform File (2)"([Content])),
+    #"Removed Other Columns2" = Table.SelectColumns(#"Invoke Custom Function2", {"Transform File (2)"}),
+    #"Expanded Table Column2" = Table.ExpandTableColumn(#"Removed Other Columns2", "Transform File (2)", Table.ColumnNames(#"Transform File (2)"(#"Sample File (2)"))),
+    #"Removed Columns1" = Table.RemoveColumns(#"Expanded Table Column2",{"", "_1"}),
+    #"Renamed Columns" = Table.RenameColumns(#"Removed Columns1",{{"ride_id", "trip_id"}, {"rideable_type", "bike_type"}, {"started_at", "start_time"}, {"ended_at", "end_time"}, {"member_casual", "membership_type"}}),
+    #"Changed Type" = Table.TransformColumnTypes(#"Renamed Columns",{{"membership_type", type text}, {"start_time", type datetime}, {"end_time", type datetime}}),
+    #"Inserted Day Name" = Table.AddColumn(#"Changed Type", "Days_of_week", each Date.DayOfWeekName([start_time]), type text),
+    #"Inserted Month" = Table.AddColumn(#"Inserted Day Name", "Month_Name", each Text.Start(Date.MonthName([start_time]),3)),
+    #"Change the membership type's name" = Table.AddColumn(#"Inserted Month", "Member_Type", each if [membership_type] = "casual" then "Casual Rider" else if [membership_type] = "member" then "Annual Member" else null),
+    #"Removed Columns" = Table.RemoveColumns(#"Change the membership type's name",{"membership_type"}),
+    #"Filtered out the docked bikes" = Table.SelectRows(#"Removed Columns", each ([bike_type] <> "docked_bike")),
+    #"Inserted Time Subtraction" = Table.AddColumn(#"Filtered out the docked bikes", "Trip_duration", each Duration.Minutes([end_time]-[start_time])),
+    #"Changed Type1" = Table.TransformColumnTypes(#"Inserted Time Subtraction",{{"start_lat", type number}, {"start_lng", type number}, {"end_lat", type number}, {"end_lng", type number}, {"Trip_duration", Int64.Type}}),
+    #"start lat rad" = Table.AddColumn(#"Changed Type1", "start_lat_rad", each ([start_lat] / 180) * Number.PI),
+    #"start lng rad" = Table.AddColumn(#"start lat rad", "start_lng_rad", each ([start_lng] / 180) * Number.PI),
+    #"end lat rad" = Table.AddColumn(#"start lng rad", "end_lat_rad", each ([end_lat] / 180) * Number.PI),
+    #"end lng rad" = Table.AddColumn(#"end lat rad", "end_lng_rad", each ([end_lng] / 180) * Number.PI),
+    #"distance in km" = Table.AddColumn(#"end lng rad", "Distance", each Number.Acos(Number.Sin([start_lat_rad]) * Number.Sin([end_lat_rad])+ Number.Cos([start_lat_rad]) * Number.Cos([end_lat_rad]) * Number.Cos([end_lng_rad]-[start_lng_rad])) * 6371),
+    #"Filtered Rows" = Table.SelectRows(#"distance in km", each [Distance] >= 0.05)
+in
+
+    #"Filtered Rows"
